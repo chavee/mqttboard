@@ -260,5 +260,30 @@ jobs:
               --title "$TAG"
           fi
 
+      - name: Remove obsolete release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' | while IFS= read -r asset_name; do
+            case "$asset_name" in
+              *.zip|*.blockmap|*.yml|*.yaml)
+                echo "Deleting obsolete asset: $asset_name"
+                gh release delete-asset "$TAG" "$asset_name" --repo "$REPO" --yes
+                ;;
+            esac
+          done
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
           mapfile -d '' assets < <(find release -maxdepth 1 -type f -print0 | sort -z)
           gh release upload "$TAG" "${assets[@]}" --repo "$REPO" --clobber
