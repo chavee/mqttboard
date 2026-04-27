@@ -1,0 +1,111 @@
+{
+  "name": "MQTTBoard",
+  "productName": "MQTTBoard",
+  "description": "MQTT client application inspired by Workswithweb MQTTBox.",
+  "version": "1.0.0",
+  "author": "Chavee Issariyapat",
+  "copyright": "Copyleft © 2026 Chavee Issariyapat",
+  "license": "MIT",
+  "main": "./scripts/desktop-main.js",
+  "dependencies": {
+    "compare-versions": "3.0.0",
+    "fixed-data-table": "0.6.3",
+    "flux": "3.1.0",
+    "getmac": "1.2.1",
+    "localforage": "1.4.3",
+    "lodash": "4.17.1",
+    "moment": "2.16.0",
+    "mqtt": "2.1.1",
+    "node-uuid": "1.4.7",
+    "q": "1.4.1",
+    "qlobber": "0.7.0",
+    "react": "15.6.2",
+    "react-copy-to-clipboard": "4.2.3",
+    "react-dom": "15.6.2",
+    "react-router": "3.0.0",
+    "recharts": "0.18.0",
+    "request": "2.78.0"
+  },
+  "scripts": {
+    "icons": "mkdir -p build/icons build/icons.iconset && cp src/www/images/icon-source-modern.png build/icons/icon.png && sips -z 16 16 build/icons/icon.png --out build/icons.iconset/icon_16x16.png && sips -z 32 32 build/icons/icon.png --out build/icons.iconset/icon_16x16@2x.png && sips -z 32 32 build/icons/icon.png --out build/icons.iconset/icon_32x32.png && sips -z 64 64 build/icons/icon.png --out build/icons.iconset/icon_32x32@2x.png && sips -z 128 128 build/icons/icon.png --out build/icons.iconset/icon_128x128.png && sips -z 256 256 build/icons/icon.png --out build/icons.iconset/icon_128x128@2x.png && sips -z 256 256 build/icons/icon.png --out build/icons.iconset/icon_256x256.png && sips -z 512 512 build/icons/icon.png --out build/icons.iconset/icon_256x256@2x.png && sips -z 512 512 build/icons/icon.png --out build/icons.iconset/icon_512x512.png && sips -z 1024 1024 build/icons/icon.png --out build/icons.iconset/icon_512x512@2x.png && iconutil -c icns build/icons.iconset -o build/icons/icon.icns && rm -rf build/icons.iconset",
+    "build:web": "gulp build",
+    "build": "npm run build:desktop",
+    "build:desktop": "npm run build:web && node scripts/build-desktop.js",
+    "build:desktop:all": "npm run build:web && node scripts/build-all-desktop.js",
+    "stage:release": "node scripts/stage-release-artifacts.js",
+    "desktop": "gulp build && electron .",
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.29.2",
+    "@babel/preset-react": "^7.28.5",
+    "babelify": "^10.0.0",
+    "browser-sync": "^3.0.4",
+    "browserify": "^17.0.1",
+    "electron": "^30.0.0",
+    "electron-builder": "^26.8.1",
+    "gulp": "^4.0.2",
+    "gulp-notify": "^5.0.0",
+    "require-dir": "^1.2.0",
+    "vinyl-source-stream": "^2.0.0",
+    "watchify": "^4.0.0"
+  },
+  "build": {
+    "appId": "com.chavee.mqttboard",
+    "productName": "MQTTBoard",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "scripts/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "icon": "build/icons/icon.icns",
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true,
+      "notarize": true,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "icon": "build/icons/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "icon": "build/icons/icon.png",
+      "category": "Utility",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  }
+}

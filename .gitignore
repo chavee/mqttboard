@@ -1,0 +1,13 @@
+node_modules/
+build/
+dist/
+release/
+.tmp-release/
+.idea/
+mqttbox/
+.DS_Store
+*.log
+AuthKey_*.p8
+*.p12
+*.pfx
+.claude

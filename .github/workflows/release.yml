@@ -1,0 +1,192 @@
+name: Build and Release Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Intel
+            runs_on: macos-15-intel
+            artifact_name: macos-intel
+            is_macos: true
+          - name: macOS Apple Silicon
+            runs_on: macos-15
+            artifact_name: macos-arm64
+            is_macos: true
+          - name: Windows x64
+            runs_on: windows-latest
+            artifact_name: windows-x64
+            is_macos: false
+          - name: Linux x64
+            runs_on: ubuntu-latest
+            artifact_name: linux-x64
+            is_macos: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify macOS signing secrets
+        if: matrix.is_macos && startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        run: |
+          missing=()
+          for key in CSC_LINK CSC_KEY_PASSWORD APPSTORE_KEY_ID APPSTORE_ISSUER_ID APPSTORE_PRIVATE_KEY; do
+            if [ -z "${!key}" ]; then
+              missing+=("$key")
+            fi
+          done
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing required macOS signing secrets: ${missing[*]}"
+            exit 1
+          fi
+
+      - name: Prepare App Store Connect API key
+        if: matrix.is_macos && startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/appstoreconnect"
+          key_path="$RUNNER_TEMP/appstoreconnect/AuthKey_${APPSTORE_KEY_ID}.p8"
+          printf '%s' "$APPSTORE_PRIVATE_KEY" > "$key_path"
+          chmod 600 "$key_path"
+          echo "APPLE_API_KEY=$key_path" >> "$GITHUB_ENV"
+          echo "APPLE_KEYCHAIN_PROFILE=mqttboard-notarytool" >> "$GITHUB_ENV"
+
+      - name: Validate App Store Connect API key
+        if: matrix.is_macos && startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        run: |
+          if [ -z "${APPLE_API_KEY:-}" ] || [ ! -f "$APPLE_API_KEY" ]; then
+            echo "Missing App Store Connect API key file on runner. Prepare step did not produce APPLE_API_KEY."
+            exit 1
+          fi
+
+          if ! grep -q "BEGIN PRIVATE KEY" "$APPLE_API_KEY"; then
+            echo "App Store Connect private key is malformed. Expected a .p8 PEM with BEGIN PRIVATE KEY header."
+            exit 1
+          fi
+
+          echo "Validating App Store Connect credentials with notarytool..."
+          if ! xcrun notarytool store-credentials "$APPLE_KEYCHAIN_PROFILE" \
+            --key "$APPLE_API_KEY" \
+            --key-id "$APPSTORE_KEY_ID" \
+            --issuer "$APPSTORE_ISSUER_ID" \
+            --validate; then
+            echo "App Store Connect credential validation failed. Check APPSTORE_KEY_ID, APPSTORE_ISSUER_ID, APPSTORE_PRIVATE_KEY and App Manager access."
+            exit 1
+          fi
+
+      - name: Build desktop app (macOS signed)
+        if: matrix.is_macos && startsWith(github.ref, 'refs/tags/')
+        run: npm run build:desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPLE_KEYCHAIN_PROFILE: ${{ env.APPLE_KEYCHAIN_PROFILE }}
+
+      - name: Build desktop app (macOS unsigned)
+        if: matrix.is_macos && !startsWith(github.ref, 'refs/tags/')
+        run: npm run build:desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Build desktop app (Windows/Linux)
+        if: ${{ !matrix.is_macos }}
+        run: npm run build:desktop
+
+      - name: Stage release artifacts
+        run: npm run stage:release -- dist release
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: release/*
+          if-no-files-found: error
+
+      - name: Cleanup macOS notarization credentials
+        if: always() && matrix.is_macos
+        shell: bash
+        run: |
+          if [ -n "${APPLE_KEYCHAIN_PROFILE:-}" ]; then
+            xcrun notarytool delete-credentials "$APPLE_KEYCHAIN_PROFILE" >/dev/null 2>&1 || true
+          fi
+
+          if [ -n "${APPLE_API_KEY:-}" ] && [ -f "$APPLE_API_KEY" ]; then
+            rm -f "$APPLE_API_KEY"
+          fi
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Show collected files
+        run: find release -maxdepth 2 -type f | sort
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+          else
+            gh release create "$TAG" \
+              --draft \
+              --generate-notes \
+              --title "$TAG"
+          fi
+
+          gh release upload "$TAG" release/* --clobber
