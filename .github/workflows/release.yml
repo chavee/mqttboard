@@ -144,7 +144,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: release/*
+          path: release/
+          compression-level: 0
           if-no-files-found: error
 
       - name: Cleanup macOS notarization credentials
@@ -181,6 +182,29 @@ jobs:
 
       - name: Show collected files
         run: find release -maxdepth 2 -type f | sort
+
+      - name: Validate downloaded release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          zip_files=(release/*.zip)
+          dmg_files=(release/*.dmg)
+
+          for zip_file in "${zip_files[@]}"; do
+            echo "Validating zip: $zip_file"
+            unzip -t "$zip_file" >/dev/null
+          done
+
+          if command -v hdiutil >/dev/null 2>&1; then
+            for dmg_file in "${dmg_files[@]}"; do
+              echo "Validating dmg: $dmg_file"
+              hdiutil verify "$dmg_file" >/dev/null
+            done
+          fi
+
+          shasum -a 256 release/* > release/SHA256SUMS.txt
 
       - name: Verify tag release context
         env:
@@ -236,4 +260,5 @@ jobs:
               --title "$TAG"
           fi
 
-          gh release upload "$TAG" release/* --repo "$REPO" --clobber
+          mapfile -d '' assets < <(find release -maxdepth 1 -type f -print0 | sort -z)
+          gh release upload "$TAG" "${assets[@]}" --repo "$REPO" --clobber
