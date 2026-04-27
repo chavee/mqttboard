@@ -40,6 +40,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -168,6 +170,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -178,17 +182,55 @@ jobs:
       - name: Show collected files
         run: find release -maxdepth 2 -type f | sort
 
+      - name: Verify tag release context
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$REF" != refs/tags/* ]]; then
+            echo "Expected a tag ref, got: $REF"
+            exit 1
+          fi
+
+          if [[ -z "$TAG" || ! "$TAG" =~ ^v ]]; then
+            echo "Expected tag name starting with v, got: $TAG"
+            exit 1
+          fi
+
+          git fetch --force --tags origin
+          TAG_SHA="$(git rev-list -n 1 "$TAG")"
+
+          if [[ -z "$TAG_SHA" ]]; then
+            echo "Tag $TAG is not available after fetching tags."
+            exit 1
+          fi
+
+          if [[ "$TAG_SHA" != "$SHA" ]]; then
+            echo "Tag $TAG resolves to $TAG_SHA but workflow is running for $SHA"
+            exit 1
+          fi
+
+          echo "Verified tag context for $TAG at $SHA"
+
       - name: Create or update draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
         run: |
+          set -euo pipefail
+
           if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
             echo "Release $TAG already exists"
           else
             gh release create "$TAG" \
               --repo "$REPO" \
+              --target "$SHA" \
               --draft \
               --generate-notes \
               --title "$TAG"
