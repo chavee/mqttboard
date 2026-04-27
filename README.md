@@ -1,67 +1,124 @@
 # MQTTBoard
-#### Developers helper program to create and test MQTT connectivity protocol.
-Supercharge your MQTT workflow with MQTTBoard Apps available on Chrome, Linux, Mac, Web and Windows! Build, test, and document your MQTT connectivity protocol.
 
-#### [MQTTBoard Apps are available for following platforms - Download MQTTBoard Apps HERE!](http://workswithweb.com/html/mqttbox/downloads.html)
+MQTTBoard is an open-source desktop MQTT client for inspecting, testing, and organizing MQTT connections.
 
-![Chrome](http://workswithweb.com/images/platforms/chrome.png "Chrome Store app")![Linux](http://workswithweb.com/images/platforms/linux.png "Linux")![MAC](http://workswithweb.com/images/platforms/mac.png "MAC app")![HTML App](http://workswithweb.com/images/platforms/html.png "HTML App")![Windows](http://workswithweb.com/images/platforms/windows.png "Windows app")
+It is designed for developers and operators who need a lightweight GUI to:
+- connect to MQTT brokers over TCP or WebSocket
+- publish and subscribe to topics
+- manage multiple client profiles
+- organize clients into folders
+- review message history
+- run MQTT load tests
 
-#### MQTTBoard Client features include:
-- Connect to multiple mqtt brokers with TCP or Web Sockets protocols
-- Connect with wide range of mqtt client connection settings
-- Publish/Subscribe to multiple topics at same time
-- Supports Single Level(+) and Multilevel(#) subscription to topics
-- Copy/Republish payloads
-- History of published/subscribed messages for each topic
-- Reconnect client to broker
+## Features
 
-#### MQTTBoard Load test features include:
-- Load test MQTT publisher/Subscriber.
-- Run load test with wide range load test settings
-- View load test data 
-- View load test results in graphs
+### MQTT client
+- Multiple MQTT client profiles
+- TCP, TLS, WebSocket, and Secure WebSocket connection modes
+- Publish and subscribe workflows
+- Topic wildcard support with `+` and `#`
+- Message history per client/topic flow
+- Favorite and online views
+- Import/export config as JSON
 
-Please report Feature Requests, Enhancements or Bugs to workswithweb@gmail.com or on [Github](https://github.com/issues)
+### Organization
+- Folder-based client grouping
+- Drag-and-drop client ordering
+- Saved filters and protocol filter state
 
-## Getting Started
-Make sure you have [Node.js](https://nodejs.org/en/) installed and follow below steps to build and execute.
+### Load testing
+- MQTT publish/subscribe load test flows
+- Basic data and graph views for load test results
 
-- `git clone git@github.com:workswithweb/MQTTBox.git`
+## Install
 
-- `cd MQTTBoard`
+The easiest way to use MQTTBoard is to download a packaged desktop build from the repository Releases page:
+
+- macOS Intel
+- macOS Apple Silicon
+- Windows x64
+- Linux x64
+
+If you prefer to build it yourself, follow the source build steps below.
+
+## Build From Source
+
+### Requirements
+- Node.js
+- npm
+- macOS, Windows, or Linux
+
+This project currently depends on an older `mqtt` package version. If you build the web-facing assets and hit the legacy host-detection issue, apply the patch described in the Development Notes section below.
+
+### 1. Clone the repository
+
+- `git clone https://github.com/chavee/mqttboard.git`
+- `cd mqttboard`
+
+### 2. Install dependencies
 
 - `npm install`
 
-- `Open /node_modules/mqtt/lib/connect/ws.js file and goto line 56 or where ever you find below code.`
-    else {
-        throw new Error('Could not determine host. Specify host manually.')
-    }
- `Remove this else block completely. We need this step to make mqtt.js works with webworkers`.
+### 3. Build and run the desktop app
 
-Thats it !!! Your project is setup. Execute below commands in your current folder (MQTTBoard) as per your app requirements.
+- `npm run desktop`
 
-###### Desktop App
-- `npm run desktop` - Launches MQTTBoard as an Electron desktop app using the checked-in `build/` assets.
-- Use `File -> Export Config JSON` to back up `clients`, `loads`, and `folders` to a JSON file.
-- Use `File -> Import Config JSON` to restore a JSON backup. The desktop app reloads after import.
+This builds the app assets and launches MQTTBoard with Electron.
 
-###### Desktop Release
-- GitHub Actions workflow at `.github/workflows/release.yml` builds desktop packages for macOS Intel, macOS Apple Silicon, Windows x64, and Linux x64 when you push a tag that starts with `v`.
-- Required repository secrets for macOS signing/notarization: `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`, `APPSTORE_PRIVATE_KEY`.
-- Create and push a release tag:
-  - `git tag v1.0.1`
-  - `git push origin v1.0.1`
-- The workflow creates or updates a draft GitHub Release and uploads artifacts collected from `dist/`.
-- You can also run the workflow manually with `workflow_dispatch`; macOS builds from manual runs are unsigned by design.
+### 4. Build distributable packages
 
-###### Web App Builds
-- `gulp build` - Generates `build` folder with all compiled static web assets in your current directory (MQTTBoard). You can deploy `build` in you web/app server.
+- `npm run build:desktop`
 
-- `gulp` - Live development mode. Use while development to see live reload of your web app when changes done in code.
+This produces platform-specific installer output in `dist/` for the current OS:
+- macOS: `.dmg`
+- Windows: `.exe`
+- Linux: `.AppImage`
 
-By default `master` branch has MQTTBoard web app. Please check other MQTTBox branches for other platform apps.
- 
-NOTE: 
-1.Web App supports only Websockets because of browser limitations.
-2.We are working to make all apps to look in sync.
-3.We are working to make all features avaliable to all platforms.
+### 5. Build web assets only
+
+- `npm run build:web`
+
+This generates compiled frontend assets in `build/`.
+
+## Development Notes
+
+### Legacy `mqtt` workaround
+
+This repository uses `mqtt@2.1.1`. In some environments, that version may require a small manual patch for browser/webworker builds.
+
+Open:
+- `node_modules/mqtt/lib/connect/ws.js`
+
+Find and remove this block:
+
+```js
+else {
+    throw new Error('Could not determine host. Specify host manually.')
+}
+```
+
+This workaround is only relevant if you hit that specific legacy issue while building or running the web-facing assets.
+
+### Config import/export
+
+In the desktop app:
+- `File -> Export Config JSON` saves `clients`, `loads`, and `folders`
+- `File -> Import Config JSON` restores a previously exported config
+
+## Project Status
+
+MQTTBoard is actively maintained as a practical utility project. The codebase includes older dependencies and legacy patterns, but the app is being updated incrementally with better desktop packaging and usability improvements.
+
+## Contributing
+
+Issues and pull requests are welcome.
+
+If you report a bug, include:
+- your OS and version
+- how you installed or built MQTTBoard
+- steps to reproduce
+- logs or screenshots if relevant
+
+## License
+
+MIT

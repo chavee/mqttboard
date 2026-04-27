@@ -6,11 +6,9 @@ const path = require('path');
 const sourceDir = path.resolve(process.argv[2] || 'dist');
 const outputDir = path.resolve(process.argv[3] || 'release');
 
-const releaseFilePattern = /\.(dmg|zip|exe|appimage|deb|rpm|snap|blockmap|yml|yaml)$/i;
+const releaseFilePattern = /\.(dmg|exe|appimage)$/i;
 const ignoredNames = new Set([
-  '.DS_Store',
-  'builder-debug.yml',
-  'builder-effective-config.yaml'
+  '.DS_Store'
 ]);
 
 function ensureDir(dirPath) {

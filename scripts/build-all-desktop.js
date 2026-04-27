@@ -4,9 +4,7 @@ const { spawnSync } = require('child_process');
 
 const buildTargets = [
   ['--mac', 'dmg', '--arm64'],
-  ['--mac', 'zip', '--arm64'],
   ['--mac', 'dmg', '--x64'],
-  ['--mac', 'zip', '--x64'],
   ['--win', 'nsis', '--x64'],
   ['--linux', 'AppImage', '--x64']
 ];

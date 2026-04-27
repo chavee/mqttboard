@@ -63,7 +63,7 @@
       "package.json"
     ],
     "mac": {
-      "icon": "build/icons/icon.icns",
+      "icon": "assets/icons/icon.icns",
       "category": "public.app-category.developer-tools",
       "hardenedRuntime": true,
       "notarize": true,
@@ -74,18 +74,11 @@
             "x64",
             "arm64"
           ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
         }
       ]
     },
     "win": {
-      "icon": "build/icons/icon.ico",
+      "icon": "assets/icons/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -96,7 +89,7 @@
       ]
     },
     "linux": {
-      "icon": "build/icons/icon.png",
+      "icon": "assets/icons/icon.png",
       "category": "Utility",
       "target": [
         {
