@@ -179,14 +179,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
             echo "Release $TAG already exists"
           else
             gh release create "$TAG" \
+              --repo "$REPO" \
               --draft \
               --generate-notes \
               --title "$TAG"
           fi
 
-          gh release upload "$TAG" release/* --clobber
+          gh release upload "$TAG" release/* --repo "$REPO" --clobber
