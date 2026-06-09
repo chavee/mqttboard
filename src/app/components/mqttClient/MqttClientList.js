@@ -28,7 +28,7 @@ const styles = {
         marginRight: 12
     },
     filterInput: {
-        width: 260,
+        width: 520,
         boxShadow: 'none'
     },
     filterInputWrap: {
@@ -49,53 +49,11 @@ const styles = {
         fontSize: 18,
         lineHeight: 1,
         padding: 0
-    },
-    resetFiltersBtn: {
-        marginLeft: 8,
-        color: '#5f84a9',
-        backgroundColor: '#ffffff',
-        border: '1px solid #d5e3f0',
-        borderRadius: 17,
-        height: 34,
-        padding: '0 12px',
-        fontSize: 12,
-        fontWeight: 600,
-        outline: 'none',
-        boxShadow: 'none'
-    },
-    protocolBtn: {
-        minWidth: 44,
-        height: 34,
-        marginLeft: 4,
-        border: '1px solid #337ab7',
-        borderRadius: 17,
-        fontWeight: 600,
-        fontSize: 12,
-        outline: 'none',
-        boxShadow: 'none',
-        transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease'
-    },
-    protocolBtnActive: {
-        color: '#255f8f',
-        backgroundColor: 'rgba(51, 122, 183, 0.28)',
-        borderColor: '#337ab7'
-    },
-    protocolBtnInactive: {
-        color: '#5f84a9',
-        backgroundColor: '#ffffff',
-        borderColor: '#337ab7'
     }
 };
 const LAST_SELECTED_FOLDER_STORAGE_KEY = 'mqttboard.lastSelectedFolderId';
 const CLIENT_FILTER_TEXT_STORAGE_KEY = 'mqttboard.clientFilterText';
-const PROTOCOL_FILTERS_STORAGE_KEY = 'mqttboard.protocolFilters';
-const PROTOCOL_FILTERS = ['mqtt', 'mqtts', 'ws', 'wss'];
-const DEFAULT_PROTOCOL_FILTERS = {
-    mqtt: true,
-    mqtts: true,
-    ws: true,
-    wss: true
-};
+const FILTER_PROTOCOL_TOKENS = ['mqtt', 'mqtts', 'ws', 'wss'];
 
 class MqttClientList extends Component {
 
@@ -129,8 +87,6 @@ class MqttClientList extends Component {
         this.syncSelectedFolder = this.syncSelectedFolder.bind(this);
         this.onClientFilterTextChange = this.onClientFilterTextChange.bind(this);
         this.clearClientFilterText = this.clearClientFilterText.bind(this);
-        this.toggleProtocolFilter = this.toggleProtocolFilter.bind(this);
-        this.resetFilters = this.resetFilters.bind(this);
         this.createClientInSelectedFolder = this.createClientInSelectedFolder.bind(this);
         this.toggleFavorite = this.toggleFavorite.bind(this);
         this.setViewMode = this.setViewMode.bind(this);
@@ -148,7 +104,6 @@ class MqttClientList extends Component {
             dragOverClientId: null,
             dragOverFolderId: null,
             clientFilterText: this.getPersistedClientFilterText(),
-            protocolFilters: this.getPersistedProtocolFilters(),
             viewMode: 'folder'
         };
     }
@@ -418,22 +373,6 @@ class MqttClientList extends Component {
         this.setState({clientFilterText: ''});
     }
 
-    toggleProtocolFilter(protocol) {
-        var protocolFilters = Object.assign({}, this.state.protocolFilters);
-        protocolFilters[protocol] = !protocolFilters[protocol];
-        this.persistProtocolFilters(protocolFilters);
-        this.setState({protocolFilters: protocolFilters});
-    }
-
-    resetFilters() {
-        this.persistClientFilterText('');
-        this.persistProtocolFilters(DEFAULT_PROTOCOL_FILTERS);
-        this.setState({
-            clientFilterText: '',
-            protocolFilters: Object.assign({}, DEFAULT_PROTOCOL_FILTERS)
-        });
-    }
-
     toggleFavorite(mcsId, e) {
         e.stopPropagation();
         MqttClientActions.toggleFavoriteMqttClient(mcsId);
@@ -478,25 +417,6 @@ class MqttClientList extends Component {
         }
     }
 
-    getPersistedProtocolFilters() {
-        try {
-            var raw = window.localStorage.getItem(PROTOCOL_FILTERS_STORAGE_KEY);
-            if(raw == null) {
-                return Object.assign({}, DEFAULT_PROTOCOL_FILTERS);
-            }
-
-            var parsed = JSON.parse(raw);
-            return {
-                mqtt: parsed.mqtt !== false,
-                mqtts: parsed.mqtts !== false,
-                ws: parsed.ws !== false,
-                wss: parsed.wss !== false
-            };
-        } catch(e) {
-            return Object.assign({}, DEFAULT_PROTOCOL_FILTERS);
-        }
-    }
-
     persistSelectedFolderId(folderId) {
         try {
             if(folderId == null) {
@@ -515,18 +435,6 @@ class MqttClientList extends Component {
                 return;
             }
             window.localStorage.setItem(CLIENT_FILTER_TEXT_STORAGE_KEY, value);
-        } catch(e) {
-        }
-    }
-
-    persistProtocolFilters(protocolFilters) {
-        try {
-            window.localStorage.setItem(PROTOCOL_FILTERS_STORAGE_KEY, JSON.stringify({
-                mqtt: protocolFilters.mqtt !== false,
-                mqtts: protocolFilters.mqtts !== false,
-                ws: protocolFilters.ws !== false,
-                wss: protocolFilters.wss !== false
-            }));
         } catch(e) {
         }
     }
@@ -576,48 +484,35 @@ class MqttClientList extends Component {
         }
 
         var filterText = (this.state.clientFilterText || '').trim().toLowerCase();
-        var protocolFilters = this.state.protocolFilters || {};
+        var filterTokens = filterText.length > 0 ? filterText.split(/\s+/).filter(Boolean) : [];
+        var requestedProtocols = filterTokens.filter(function(token) {
+            return FILTER_PROTOCOL_TOKENS.indexOf(token) !== -1;
+        });
+        var searchTokens = filterTokens.filter(function(token) {
+            return FILTER_PROTOCOL_TOKENS.indexOf(token) === -1;
+        });
 
         return _.filter(clients, function(client) {
             var protocol = (client.protocol || '').toLowerCase();
-            if(protocolFilters[protocol] === false) {
+            if(requestedProtocols.length > 0 && requestedProtocols.indexOf(protocol) === -1) {
                 return false;
             }
-            if(filterText.length === 0) {
+
+            if(searchTokens.length === 0) {
                 return true;
             }
+
             var searchableText = [
                 client.mqttClientName,
                 client.mqttClientId,
                 client.mcsId,
                 client.host
             ].join(' ').toLowerCase();
-            return searchableText.indexOf(filterText) !== -1;
+
+            return searchTokens.every(function(token) {
+                return searchableText.indexOf(token) !== -1;
+            });
         });
-    }
-
-    getProtocolButtonStyle(protocol) {
-        return Object.assign(
-            {},
-            styles.protocolBtn,
-            this.state.protocolFilters[protocol] ? styles.protocolBtnActive : styles.protocolBtnInactive
-        );
-    }
-
-    renderProtocolFilters() {
-        return PROTOCOL_FILTERS.map(function(protocol) {
-            return (
-                <button
-                    key={protocol}
-                    type="button"
-                    title={'Filter ' + protocol}
-                    style={this.getProtocolButtonStyle(protocol)}
-                    onClick={this.toggleProtocolFilter.bind(this, protocol)}
-                >
-                    {protocol}
-                </button>
-            );
-        }.bind(this));
     }
 
     render() {
@@ -841,15 +736,6 @@ class MqttClientList extends Component {
                                         >&#215;</button>
                                     ) : null}
                                 </span>
-                                {this.renderProtocolFilters()}
-                                <button
-                                    type="button"
-                                    title="Reset filters"
-                                    style={styles.resetFiltersBtn}
-                                    onClick={this.resetFilters}
-                                >
-                                    Reset filters
-                                </button>
                             </div>
                             {shouldShowCreateClientActions ? (
                                 <button onClick={this.createClientInSelectedFolder} type="button" className="btn btn-primary btn-sm" style={{marginRight: 12, whiteSpace: 'nowrap'}}>
