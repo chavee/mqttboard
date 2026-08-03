@@ -15,7 +15,7 @@
     "localforage": "1.4.3",
     "lodash": "4.17.1",
     "moment": "2.16.0",
-    "mqtt": "2.1.1",
+    "mqtt": "5.15.2",
     "node-uuid": "1.4.7",
     "q": "1.4.1",
     "qlobber": "0.7.0",

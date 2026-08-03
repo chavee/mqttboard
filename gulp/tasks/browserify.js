@@ -14,6 +14,7 @@ var handleErrors = require('../util/handleErrors');
 var source       = require('vinyl-source-stream');
 var config       = require('../config').browserify;
 var babelify     = require('babelify');
+var path         = require('path');
 
 function browserifyTask(callback) {
 
@@ -28,6 +29,7 @@ function browserifyTask(callback) {
       entries: bundleConfig.entries,
       // Add file extensions to make optional in your requires
       extensions: config.extensions,
+      noParse: [path.resolve(__dirname, '../../node_modules/mqtt/node_modules/lru-cache/dist/commonjs/index.js')],
       // Enable source maps!
       debug: config.debug
     });
@@ -62,7 +64,7 @@ function browserifyTask(callback) {
         .on('end', reportFinished);
     };
 
-    bundler.transform(babelify.configure());
+    bundler.transform(babelify, {global: true});
 
     if (global.isWatching) {
       // Wrap with watchify and rebundle on changes
