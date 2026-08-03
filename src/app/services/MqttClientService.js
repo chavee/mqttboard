@@ -1,4 +1,5 @@
 import Events from 'events';
+import UUID from 'node-uuid';
 import _ from 'lodash';
 import AppDispatcher from '../dispatcher/AppDispatcher';
 import MqttClientConstants from '../utils/MqttClientConstants';
@@ -77,6 +78,9 @@ class MqttClientService extends Events.EventEmitter {
                     break;
                 case MqttClientConstants.ACTION_TOGGLE_FAVORITE_MQTT_CLIENT:
                     this.toggleFavoriteMqttClient(action.data);
+                    break;
+                case MqttClientConstants.ACTION_DUPLICATE_MQTT_CLIENT:
+                    this.duplicateMqttClient(action.data);
                     break;
                 default:
             }
@@ -521,6 +525,48 @@ class MqttClientService extends Events.EventEmitter {
             MqttClientDbService.saveMqttClientSettings(obj);
             this.emitChange(MqttClientConstants.EVENT_MQTT_CLIENT_DATA_CHANGED, mcsId);
         }
+    }
+
+    duplicateMqttClient(mcsId) {
+        var source = this.mqttClientSettings[mcsId];
+        if(source == null) {
+            return;
+        }
+
+        var now = +(new Date());
+        var duplicate = JSON.parse(JSON.stringify(source));
+        duplicate.mcsId = UUID.v4();
+        duplicate.mqttClientId = UUID.v4();
+        duplicate.mqttClientName = (source.mqttClientName || 'MQTT Client') + ' Copy';
+        duplicate.autoConnectOnAppLaunch = false;
+        duplicate.isFavorite = false;
+        duplicate.createdOn = now;
+        duplicate.updatedOn = now;
+
+        if(duplicate.publishSettings != null) {
+            for(var i = 0; i < duplicate.publishSettings.length; i++) {
+                duplicate.publishSettings[i].pubId = UUID.v4();
+                duplicate.publishSettings[i].updatedOn = now;
+            }
+        }
+
+        if(duplicate.subscribeSettings != null) {
+            for(var j = 0; j < duplicate.subscribeSettings.length; j++) {
+                duplicate.subscribeSettings[j].subId = UUID.v4();
+                duplicate.subscribeSettings[j].updatedOn = now;
+            }
+        }
+
+        var clientsInFolder = _.filter(_.values(this.mqttClientSettings), function(c) {
+            return c.folderId === duplicate.folderId;
+        });
+        var maxOrder = clientsInFolder.length > 0 ? (_.maxBy(clientsInFolder, 'order') || {}).order || 0 : -1;
+        duplicate.order = maxOrder + 1;
+
+        this.mqttClientSettings[duplicate.mcsId] = duplicate;
+        MqttClientDbService.saveMqttClientSettings(duplicate);
+        this.markAsUnSubscribed(duplicate.mcsId);
+        this.emitChange(MqttClientConstants.EVENT_MQTT_CLIENT_DATA_CHANGED, duplicate.mcsId);
     }
 
     getClientsByFolderId(folderId) {

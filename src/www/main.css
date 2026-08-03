@@ -362,6 +362,30 @@ a:hover { color: black;text-decoration: none;}
     transition: color 0.15s, background 0.15s;
 }
 
+.client-card .card-duplicate-btn {
+    position: absolute;
+    top: 30px;
+    right: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ccc;
+    padding: 2px;
+    line-height: 1;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+}
+
+.client-card .card-duplicate-btn:hover {
+    color: #337ab7;
+    background: #e3f2fd;
+}
+
 .client-card .card-star-btn.active {
     color: #f5a623;
 }

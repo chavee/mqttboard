@@ -114,6 +114,13 @@ class MqttClientActions {  
             data: mcsId
         });
     }
+
+    static duplicateMqttClient(mcsId) {
+        AppDispatcher.dispatch({
+            actionType: MqttClientConstants.ACTION_DUPLICATE_MQTT_CLIENT,
+            data: mcsId
+        });
+    }
 }
 
 export default MqttClientActions;

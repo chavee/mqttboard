@@ -1,7 +1,7 @@
 import React, {Component} from 'react';
 import _ from 'lodash';
 
-import {IconFolder, IconEdit, IconX, IconStar} from '../common/Icons';
+import {IconFolder, IconEdit, IconX, IconStar, IconCopy} from '../common/Icons';
 import NavUtils from '../../utils/NavUtils';
 import MqttClientService from '../../services/MqttClientService';
 import MqttClientActions from '../../actions/MqttClientActions';
@@ -89,6 +89,7 @@ class MqttClientList extends Component {
         this.clearClientFilterText = this.clearClientFilterText.bind(this);
         this.createClientInSelectedFolder = this.createClientInSelectedFolder.bind(this);
         this.toggleFavorite = this.toggleFavorite.bind(this);
+        this.duplicateClient = this.duplicateClient.bind(this);
         this.setViewMode = this.setViewMode.bind(this);
 
         this.state = {
@@ -378,6 +379,11 @@ class MqttClientList extends Component {
         MqttClientActions.toggleFavoriteMqttClient(mcsId);
     }
 
+    duplicateClient(mcsId, e) {
+        e.stopPropagation();
+        MqttClientActions.duplicateMqttClient(mcsId);
+    }
+
     setViewMode(mode) {
         this.setState({viewMode: mode});
     }
@@ -660,6 +666,11 @@ class MqttClientList extends Component {
                             title={client.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                             onClick={self.toggleFavorite.bind(self, client.mcsId)}
                         ><IconStar size={13} filled={client.isFavorite}/></button>
+                        <button
+                            className="card-duplicate-btn"
+                            title="Duplicate client"
+                            onClick={self.duplicateClient.bind(self, client.mcsId)}
+                        ><IconCopy size={13}/></button>
                         <button
                             className="card-delete-btn"
                             title="Delete client"
