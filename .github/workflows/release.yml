@@ -24,10 +24,12 @@ jobs:
             runs_on: macos-15-intel
             artifact_name: macos-intel
             is_macos: true
+            mac_arch: x64
           - name: macOS Apple Silicon
             runs_on: macos-15
             artifact_name: macos-arm64
             is_macos: true
+            mac_arch: arm64
           - name: Windows x64
             runs_on: windows-latest
             artifact_name: windows-x64
@@ -140,6 +142,55 @@ jobs:
       - name: Stage release artifacts
         run: npm run stage:release -- dist release
 
+      - name: Verify macOS disk images
+        if: matrix.is_macos
+        shell: bash
+        env:
+          MAC_ARCH: ${{ matrix.mac_arch }}
+        run: |
+          set -euo pipefail
+
+          dmg_files=()
+          while IFS= read -r dmg_file; do
+            dmg_files+=("$dmg_file")
+          done < <(find release -maxdepth 1 -type f -name '*.dmg' | sort)
+
+          # Each macOS runner must produce exactly one dmg for its own arch.
+          # Building both arches here makes two jobs emit the same file name,
+          # which download-artifact then merges into one corrupted file.
+          if [ ${#dmg_files[@]} -ne 1 ]; then
+            echo "Expected exactly one .dmg for $MAC_ARCH, got ${#dmg_files[@]}:"
+            find release -maxdepth 1 -type f -name '*.dmg' | sort | sed 's/^/  /'
+            exit 1
+          fi
+
+          dmg_file="${dmg_files[0]}"
+          dmg_name="$(basename "$dmg_file")"
+
+          case "$MAC_ARCH:$dmg_name" in
+            arm64:*-arm64.dmg) ;;
+            x64:*-arm64.dmg)
+              echo "Intel runner produced an arm64 image: $dmg_name"
+              exit 1
+              ;;
+            x64:*) ;;
+            *)
+              echo "Apple Silicon runner produced a non-arm64 image: $dmg_name"
+              exit 1
+              ;;
+          esac
+
+          echo "Verifying $dmg_file"
+          hdiutil verify "$dmg_file"
+
+          mount_point="$(mktemp -d)"
+          hdiutil attach "$dmg_file" -readonly -nobrowse -noautoopen -mountpoint "$mount_point"
+          ls "$mount_point"
+          hdiutil detach "$mount_point"
+
+      - name: Record artifact checksums
+        run: node scripts/verify-release-artifacts.js write release ${{ matrix.artifact_name }}
+
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -174,6 +225,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -184,27 +240,7 @@ jobs:
         run: find release -maxdepth 2 -type f | sort
 
       - name: Validate downloaded release assets
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          shopt -s nullglob
-          zip_files=(release/*.zip)
-          dmg_files=(release/*.dmg)
-
-          for zip_file in "${zip_files[@]}"; do
-            echo "Validating zip: $zip_file"
-            unzip -t "$zip_file" >/dev/null
-          done
-
-          if command -v hdiutil >/dev/null 2>&1; then
-            for dmg_file in "${dmg_files[@]}"; do
-              echo "Validating dmg: $dmg_file"
-              hdiutil verify "$dmg_file" >/dev/null
-            done
-          fi
-
-          shasum -a 256 release/* > release/SHA256SUMS.txt
+        run: node scripts/verify-release-artifacts.js check release
 
       - name: Verify tag release context
         env:
@@ -233,12 +269,16 @@ jobs:
             exit 1
           fi
 
-          if [[ "$TAG_SHA" != "$SHA" ]]; then
-            echo "Tag $TAG resolves to $TAG_SHA but workflow is running for $SHA"
+          # For an annotated tag github.sha can be the tag object rather than
+          # the commit, so compare both sides after dereferencing.
+          REF_SHA="$(git rev-parse "${SHA}^{commit}")"
+
+          if [[ "$TAG_SHA" != "$REF_SHA" ]]; then
+            echo "Tag $TAG resolves to $TAG_SHA but workflow is running for $REF_SHA"
             exit 1
           fi
 
-          echo "Verified tag context for $TAG at $SHA"
+          echo "Verified tag context for $TAG at $TAG_SHA"
 
       - name: Create or update draft release
         env:
@@ -268,13 +308,16 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Anything already attached that this run is not about to upload is
+          # left over from an older attempt, including assets whose file name
+          # changed between releases.
+          find release -maxdepth 1 -type f -printf '%f\n' | sort > /tmp/expected-assets.txt
+
           gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' | while IFS= read -r asset_name; do
-            case "$asset_name" in
-              *.zip|*.blockmap|*.yml|*.yaml)
-                echo "Deleting obsolete asset: $asset_name"
-                gh release delete-asset "$TAG" "$asset_name" --repo "$REPO" --yes
-                ;;
-            esac
+            if ! grep -Fxq "$asset_name" /tmp/expected-assets.txt; then
+              echo "Deleting obsolete asset: $asset_name"
+              gh release delete-asset "$TAG" "$asset_name" --repo "$REPO" --yes
+            fi
           done
 
       - name: Upload release assets
@@ -285,5 +328,27 @@ jobs:
         run: |
           set -euo pipefail
 
-          mapfile -d '' assets < <(find release -maxdepth 1 -type f -print0 | sort -z)
+          assets=()
+          while IFS= read -r asset; do
+            assets+=("$asset")
+          done < <(find release -maxdepth 1 -type f | sort)
+
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "No release assets to upload."
+            exit 1
+          fi
+
           gh release upload "$TAG" "${assets[@]}" --repo "$REPO" --clobber
+
+      - name: Verify uploaded release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          rm -rf verify
+          gh release download "$TAG" --repo "$REPO" --dir verify --clobber
+
+          node scripts/verify-release-artifacts.js verify release/SHA256SUMS.txt verify
