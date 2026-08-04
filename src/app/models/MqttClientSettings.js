@@ -25,6 +25,7 @@ class MqttClientSettings {
         //ssl/tls settings
         this.sslTlsVersion = 'auto';
         this.certificateType = 'ssc';
+        this.skipDomainVerification = false;
         this.caFilePath = '';
         this.caFile = '';
         this.clientCertificateFilePath = '';

@@ -239,6 +239,7 @@ class MqttClientService extends Events.EventEmitter {
         dbClientSettingsObj.updatedOn = +(new Date());
         dbClientSettingsObj.sslTlsVersion = data.sslTlsVersion;
         dbClientSettingsObj.certificateType = data.certificateType;
+        dbClientSettingsObj.skipDomainVerification = data.skipDomainVerification;
         dbClientSettingsObj.caFilePath = data.caFilePath;
         dbClientSettingsObj.caFile = data.caFile;
         dbClientSettingsObj.clientCertificateFilePath = data.clientCertificateFilePath;

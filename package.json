@@ -2,7 +2,7 @@
   "name": "MQTTBoard",
   "productName": "MQTTBoard",
   "description": "MQTT client application inspired by Workswithweb MQTTBox.",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "Chavee Issariyapat",
   "copyright": "Copyleft © 2026 Chavee Issariyapat",
   "license": "MIT",

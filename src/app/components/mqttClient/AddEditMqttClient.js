@@ -166,13 +166,21 @@ class AddEditMqttClient extends Component {
                             </div>
                             <div className="col-xs-12 col-sm-6 col-md-3">
                                 <div className="form-group">
-                                    <label htmlFor="certificateType">SSL / TLS Certificate Type</label>
+                                    <label htmlFor="certificateType">TLS Verification Mode</label>
                                     <select name="certificateType" onChange={this.onTargetValueChange} value={this.state.certificateType}
                                         className="form-control">
-                                        <option value="cssc">CA signed server certificate</option>
-                                        <option value="cc">CA certificate only</option>
-                                        <option value="ssc">Self signed certificates</option>
+                                        <option value="cssc">Server certificate</option>
+                                        <option value="cc">Verify certificate with custom CA</option>
+                                        <option value="ssc">mTLS client certificate</option>
                                     </select>
+                                    <div className="checkbox">
+                                        <label>
+                                            <input type="checkbox" name="skipDomainVerification"
+                                                onChange={this.onCheckBoxValueChange}
+                                                checked={this.state.skipDomainVerification === true}/>
+                                            Skip domain verification
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>;
