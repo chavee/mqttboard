@@ -120,7 +120,7 @@ jobs:
 
       - name: Build desktop app (macOS signed)
         if: matrix.is_macos && startsWith(github.ref, 'refs/tags/')
-        run: npm run build:desktop
+        run: npm run build:desktop:retry
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -131,13 +131,13 @@ jobs:
 
       - name: Build desktop app (macOS unsigned)
         if: matrix.is_macos && !startsWith(github.ref, 'refs/tags/')
-        run: npm run build:desktop
+        run: npm run build:desktop:retry
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Build desktop app (Windows/Linux)
         if: ${{ !matrix.is_macos }}
-        run: npm run build:desktop
+        run: npm run build:desktop:retry
 
       - name: Stage release artifacts
         run: npm run stage:release -- dist release
