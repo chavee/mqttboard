@@ -6,6 +6,7 @@ const crypto = require('crypto');
 
 const COMBINED_NAME = 'SHA256SUMS.txt';
 const PART_PREFIX = 'SHA256SUMS-';
+const MERGED_UPDATE_METADATA = new Set(['latest-mac.yml']);
 
 function isChecksumFile(fileName) {
   return fileName === COMBINED_NAME || fileName.startsWith(PART_PREFIX);
@@ -102,12 +103,24 @@ async function commandCheck(dirPath) {
   const expected = new Map();
   for (const partName of partNames) {
     for (const entry of parseChecksumFile(path.join(dirPath, partName))) {
+      // macOS metadata is merged from Intel and Apple Silicon builds after
+      // each platform checksum file is written.
+      if (MERGED_UPDATE_METADATA.has(entry.name)) {
+        continue;
+      }
       const previous = expected.get(entry.name);
       if (previous != null && previous.sha256 !== entry.sha256) {
         console.error(`Conflicting checksums for ${entry.name}: ${previous.sha256} (${previous.source}) vs ${entry.sha256} (${partName})`);
         process.exit(1);
       }
       expected.set(entry.name, { sha256: entry.sha256, source: partName });
+    }
+  }
+
+  for (const name of MERGED_UPDATE_METADATA) {
+    const filePath = path.join(dirPath, name);
+    if (fs.existsSync(filePath)) {
+      expected.set(name, { sha256: await hashFile(filePath), source: 'merged update metadata' });
     }
   }
 
