@@ -6,7 +6,7 @@ const path = require('path');
 const sourceDir = path.resolve(process.argv[2] || 'dist');
 const outputDir = path.resolve(process.argv[3] || 'release');
 
-const releaseFilePattern = /\.(dmg|exe|appimage)$/i;
+const releaseFilePattern = /\.(dmg|exe|appimage|zip|yml|blockmap)$/i;
 const ignoredNames = new Set([
   '.DS_Store'
 ]);

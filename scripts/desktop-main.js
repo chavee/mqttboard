@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const childProcess = require('child_process');
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 
 const BUILD_INDEX_PATH = path.join(__dirname, '..', 'build', 'index.html');
 const BRIDGE_HTML_PATH = path.join(__dirname, '..', 'build', 'config-bridge.html');
@@ -24,6 +25,107 @@ const STORE_CONFIG = [
 
 let mainWindow = null;
 let mqttClientWorkerMap = {};
+let updateCheckInProgress = false;
+let manualUpdateCheck = false;
+
+function showUpdateDialog(options) {
+  if (mainWindow != null && !mainWindow.isDestroyed()) {
+    return dialog.showMessageBox(mainWindow, options);
+  }
+  return dialog.showMessageBox(options);
+}
+
+function checkForUpdates(isManualCheck) {
+  if (!app.isPackaged || updateCheckInProgress) {
+    return;
+  }
+
+  updateCheckInProgress = true;
+  manualUpdateCheck = isManualCheck === true;
+  autoUpdater.checkForUpdates().catch((error) => {
+    updateCheckInProgress = false;
+    console.error('Unable to check for updates:', error);
+    if (manualUpdateCheck) {
+      showUpdateDialog({
+        type: 'error',
+        title: 'Update check failed',
+        message: 'Unable to check for updates. Please try again later.'
+      });
+    }
+    manualUpdateCheck = false;
+  });
+}
+
+function setupAutoUpdater() {
+  if (!app.isPackaged) {
+    return;
+  }
+
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.logger = console;
+
+  autoUpdater.on('update-available', (updateInfo) => {
+    updateCheckInProgress = false;
+    showUpdateDialog({
+      type: 'info',
+      title: 'Update available',
+      message: 'MQTTBoard ' + updateInfo.version + ' is available.',
+      detail: 'Download the update now? You can continue using MQTTBoard while it downloads.',
+      buttons: ['Download', 'Later'],
+      defaultId: 0,
+      cancelId: 1
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.downloadUpdate().catch((error) => {
+          console.error('Unable to download update:', error);
+          showUpdateDialog({
+            type: 'error',
+            title: 'Update download failed',
+            message: 'Unable to download the update. Please try again later.'
+          });
+        });
+      }
+    });
+    manualUpdateCheck = false;
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    updateCheckInProgress = false;
+    if (manualUpdateCheck) {
+      showUpdateDialog({
+        type: 'info',
+        title: 'No updates available',
+        message: 'You are using the latest version of MQTTBoard.'
+      });
+    }
+    manualUpdateCheck = false;
+  });
+
+  autoUpdater.on('update-downloaded', (updateInfo) => {
+    showUpdateDialog({
+      type: 'info',
+      title: 'Update ready',
+      message: 'MQTTBoard ' + updateInfo.version + ' has been downloaded.',
+      detail: 'Restart MQTTBoard now to install the update.',
+      buttons: ['Restart and install', 'Later'],
+      defaultId: 0,
+      cancelId: 1
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
+  });
+
+  autoUpdater.on('error', (error) => {
+    updateCheckInProgress = false;
+    console.error('Auto-update error:', error);
+  });
+
+  setTimeout(() => checkForUpdates(false), 15000);
+  setInterval(() => checkForUpdates(false), 6 * 60 * 60 * 1000);
+}
 
 function broadcastToAllWindows(channel, payload) {
   BrowserWindow.getAllWindows().forEach((win) => {
@@ -388,6 +490,12 @@ function buildApplicationMenu() {
         click: function() {
           shell.openExternal('http://workswithweb.com/html/mqttbox/downloads.html');
         }
+      },
+      {
+        label: 'Check for Updates...',
+        click: function() {
+          checkForUpdates(true);
+        }
       }
     ]
   });
@@ -442,6 +550,7 @@ function createWindow() {
 app.whenReady().then(() => {
   ipcMain.on(SERVICE_TYPE_MQTT_CLIENTS, handleMqttClientAction);
   createWindow();
+  setupAutoUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -9,6 +9,7 @@
   "main": "./scripts/desktop-main.js",
   "dependencies": {
     "compare-versions": "3.0.0",
+    "electron-updater": "^6.8.9",
     "fixed-data-table": "0.6.3",
     "flux": "3.1.0",
     "getmac": "1.2.1",
@@ -46,6 +47,7 @@
     "electron-builder": "^26.8.1",
     "gulp": "^4.0.2",
     "gulp-notify": "^5.0.0",
+    "js-yaml": "^4.1.1",
     "require-dir": "^1.2.0",
     "vinyl-source-stream": "^2.0.0",
     "watchify": "^4.0.0"
@@ -68,7 +70,8 @@
       "hardenedRuntime": true,
       "notarize": true,
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ]
     },
     "win": {
@@ -94,6 +97,13 @@
           ]
         }
       ]
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "chavee",
+        "repo": "mqttboard"
+      }
+    ]
   }
 }
