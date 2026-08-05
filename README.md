@@ -30,6 +30,16 @@ It is designed for developers and operators who need a lightweight GUI to:
 - MQTT publish/subscribe load test flows
 - Basic data and graph views for load test results
 
+## Screenshots
+
+### Client workspace
+
+![MQTT client workspace with folders and connection profiles](docs/images/mqttboard-01.png)
+
+### Publish and subscribe dashboard
+
+![MQTT publish and subscribe dashboard](docs/images/mqttboard-02.png)
+
 ## Install
 
 The easiest way to use MQTTBoard is to download a packaged desktop build from the repository Releases page:
