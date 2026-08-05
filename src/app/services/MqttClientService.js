@@ -537,7 +537,6 @@ class MqttClientService extends Events.EventEmitter {
         var now = +(new Date());
         var duplicate = JSON.parse(JSON.stringify(source));
         duplicate.mcsId = UUID.v4();
-        duplicate.mqttClientId = UUID.v4();
         duplicate.mqttClientName = (source.mqttClientName || 'MQTT Client') + ' Copy';
         duplicate.autoConnectOnAppLaunch = false;
         duplicate.isFavorite = false;
