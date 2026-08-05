@@ -230,6 +230,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Install release dependencies
+        run: npm ci
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
