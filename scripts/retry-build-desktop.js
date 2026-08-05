@@ -8,7 +8,10 @@ const retryDelayMs = 15000;
 function runBuild() {
   return new Promise((resolve) => {
     const command = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const child = spawn(command, ['run', 'build:desktop'], { stdio: 'inherit' });
+    const child = spawn(command, ['run', 'build:desktop'], {
+      stdio: 'inherit',
+      shell: process.platform === 'win32'
+    });
     child.on('exit', (code) => resolve(code === 0));
     child.on('error', () => resolve(false));
   });
