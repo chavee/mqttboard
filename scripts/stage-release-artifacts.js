@@ -6,7 +6,8 @@ const path = require('path');
 const sourceDir = path.resolve(process.argv[2] || 'dist');
 const outputDir = path.resolve(process.argv[3] || 'release');
 
-const releaseFilePattern = /\.(dmg|exe|appimage|zip|yml|blockmap)$/i;
+const releaseFilePattern = /\.(dmg|exe|appimage|zip|blockmap)$/i;
+const updateMetadataPattern = /^latest(?:-[a-z0-9]+)?\.yml$/i;
 const ignoredNames = new Set([
   '.DS_Store'
 ]);
@@ -21,7 +22,7 @@ function copyFile(sourcePath, destinationPath) {
 }
 
 function shouldInclude(fileName) {
-  return !ignoredNames.has(fileName) && releaseFilePattern.test(fileName);
+  return !ignoredNames.has(fileName) && (releaseFilePattern.test(fileName) || updateMetadataPattern.test(fileName));
 }
 
 function stageArtifacts() {
