@@ -127,6 +127,13 @@ class DesktopMqttClientWorker {
         options.rejectUnauthorized = false;
       }
 
+      // Keep the desktop worker aligned with the profile setting and the
+      // browser worker. This bypasses only hostname/SAN matching; the CA
+      // chain and client certificate are still verified for mTLS profiles.
+      if (this.mqttClientObj.skipDomainVerification === true) {
+        options.checkServerIdentity = () => undefined;
+      }
+
       if (this.mqttClientObj.sslTlsVersion != null && this.mqttClientObj.sslTlsVersion !== 'auto') {
         options.secureProtocol = this.mqttClientObj.sslTlsVersion;
       }
